@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <title>OpenEnglish - Sistema de Cursos</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background: #f4f4f4;
+            color: #333;
+        }
+        header {
+            background: #1e88e5;
+            color: #fff;
+            padding: 1rem 2rem;
+        }
+        header h1 { margin: 0; font-size: 1.6rem; }
+        nav {
+            background: #1565c0;
+            padding: 0.5rem 2rem;
+        }
+        nav a {
+            color: #fff;
+            margin-right: 1rem;
+            text-decoration: none;
+            font-size: 0.95rem;
+        }
+        nav a:hover { text-decoration: underline; }
+        main { padding: 2rem; }
+        section {
+            background: #fff;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        }
+        h2 { margin-top: 0; color: #1565c0; }
+        form { margin-bottom: 1.5rem; }
+        label {
+            display: block;
+            margin-bottom: 0.3rem;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 0.4rem;
+            margin-bottom: 0.8rem;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+        button {
+            background: #1e88e5;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+        }
+        button:hover { background: #1565c0; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 0.8rem;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 0.4rem;
+            text-align: left;
+        }
+        th { background: #e3f2fd; }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>OpenEnglish - Sistema de Gestión de Cursos</h1>
+</header>
+
+<nav>
+    <a href="#login">Inicio</a>
+    <a href="#cliente">Cliente</a>
+    <a href="#admin">Administrador</a>
+    <a href="#reportes">Reportes</a>
+</nav>
+
+<main>
+
+<section id="login">
+    <h2>Inicio de Sesión</h2>
+    <form>
+        <label>Usuario</label>
+        <input type="text" required>
+        <label>Contraseña</label>
+        <input type="password" required>
+        <label>Rol</label>
+        <select required>
+            <option value="">Seleccione</option>
+            <option>Cliente</option>
+            <option>Administrador</option>
+        </select>
+        <button type="submit">Ingresar</button>
+    </form>
+</section>
+
+<section id="cliente">
+    <h2>Área de Cliente</h2>
+
+    <div class="grid-2">
+        <div>
+            <h3>Cursos Disponibles</h3>
+            <table>
+                <tr>
+                    <th>Curso</th>
+                    <th>Descripción</th>
+                    <th>Profesor</th>
+                    <th>Acción</th>
+                </tr>
+                <tr>
+                    <td>Inglés Básico A1</td>
+                    <td>Fundamentos del idioma</td>
+                    <td>Ana Suarez</td>
+                    <td><button>Inscribirme</button></td>
+                </tr>
+            </table>
+        </div>
+
+        <div>
+            <h3>Pago de Matrícula</h3>
+            <form>
+                <label>Curso</label>
+                <select>
+                    <option>Inglés Básico A1</option>
+                    <option>Inglés Conversacional</option>
+                </select>
+                <label>Método de Pago</label>
+                <select>
+                    <option>Tarjeta de Crédito</option>
+                    <option>Transferencia</option>
+                </select>
+                <label>Monto</label>
+                <input type="number">
+                <button type="submit">Pagar</button>
+            </form>
+        </div>
+    </div>
+
+    <h3>Historial</h3>
+    <table>
+        <tr>
+            <th>Curso</th>
+            <th>Fecha Matrícula</th>
+            <th>Método</th>
+            <th>Monto</th>
+            <th>Fecha Pago</th>
+        </tr>
+        <tr>
+            <td>Inglés Básico A1</td>
+            <td>2025-01-10</td>
+            <td>Tarjeta</td>
+            <td>100</td>
+            <td>2025-01-10</td>
+        </tr>
+    </table>
+</section>
+
+<section id="admin">
+    <h2>Área Administrador</h2>
+
+    <div class="grid-2">
+        <div>
+            <h3>Gestión de Cursos</h3>
+            <form>
+                <label>Título</label>
+                <input type="text">
+                <label>Descripción</label>
+                <input type="text">
+                <label>Profesor</label>
+                <select>
+                    <option>Ana Suarez</option>
+                    <option>Miguel Rey</option>
+                </select>
+                <button type="submit">Guardar Curso</button>
+            </form>
+
+            <table>
+                <tr>
+                    <th>ID</th>
+                    <th>Curso</th>
+                    <th>Profesor</th>
+                    <th>Acciones</th>
+                </tr>
+                <tr>
+                    <td>1</td>
+                    <td>Inglés Básico A1</td>
+                    <td>Ana Suarez</td>
+                    <td>
+                        <button>Editar</button>
+                        <button>Eliminar</button>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <div>
+            <h3>Gestión de Estudiantes</h3>
+            <form>
+                <label>Nombre</label>
+                <input type="text">
+                <label>Apellido</label>
+                <input type="text">
+                <label>Email</label>
+                <input type="email">
+                <button type="submit">Guardar Estudiante</button>
+            </form>
+
+            <table>
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Email</th>
+                    <th>Acciones</th>
+                </tr>
+                <tr>
+                    <td>1</td>
+                    <td>Luis Paredes</td>
+                    <td>luis@gmail.com</td>
+                    <td>
+                        <button>Editar</button>
+                        <button>Eliminar</button>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</section>
+
+<section id="reportes">
+    <h2>Reportes</h2>
+
+    <h3>Ingresos por Curso</h3>
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Curso</th>
+            <th>Matrículas</th>
+            <th>Total</th>
+        </tr>
+        <tr>
+            <td>1</td>
+            <td>Inglés Básico A1</td>
+            <td>10</td>
+            <td>1000</td>
+        </tr>
+    </table>
+
+    <button>Exportar PDF</button>
+
+    <h3>Auditoría</h3>
+    <table>
+        <tr>
+            <th>Fecha</th>
+            <th>Operación</th>
+            <th>Entidad</th>
+            <th>Usuario BD</th>
+        </tr>
+        <tr>
+            <td>2025-01-14</td>
+            <td>INSERT</td>
+            <td>Matricula</td>
+            <td>root@localhost</td>
+        </tr>
+    </table>
+</section>
+
+</main>
+</body>
+</html>
