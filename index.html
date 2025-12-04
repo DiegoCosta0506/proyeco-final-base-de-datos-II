@@ -1,113 +1,223 @@
 <?php
 session_start();
-
 $pdo = new PDO("mysql:host=localhost;dbname=openenglish;charset=utf8", "root", "");
+$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
 $msg = "";
 
 if (isset($_POST["accion"]) && $_POST["accion"] == "registro") {
-    $stmt = $pdo->prepare("INSERT INTO estudiantes(nombre,apellido,email) VALUES (?,?,?)");
-    $stmt->execute([$_POST["nombre"], $_POST["apellido"], $_POST["email"]]);
-    $id = $pdo->lastInsertId();
-
-    $stmt = $pdo->prepare("INSERT INTO usuarios(username,password_hash,email,rol_id,estudiante_id)
-    VALUES (?,?,?,?,?)");
-    $stmt->execute([
-        $_POST["username"],
-        $_POST["password"],
-        $_POST["email"],
-        3,
-        $id
-    ]);
-
-    $msg = "Usuario registrado";
+    if ($_POST["nombre"] != "" && $_POST["apellido"] != "" && $_POST["email"] != "" && $_POST["username"] != "" && $_POST["password"] != "") {
+        $stmt = $pdo->prepare("INSERT INTO estudiantes(nombre,apellido,email) VALUES (?,?,?)");
+        $stmt->execute([$_POST["nombre"], $_POST["apellido"], $_POST["email"]]);
+        $id = $pdo->lastInsertId();
+        $stmt = $pdo->prepare("INSERT INTO usuarios(username,password_hash,email,rol_id,estudiante_id) VALUES (?,?,?,?,?)");
+        $stmt->execute([$_POST["username"], $_POST["password"], $_POST["email"], 3, $id]);
+        $msg = "Usuario registrado correctamente";
+    } else {
+        $msg = "Complete todos los campos del registro";
+    }
 }
 
 if (isset($_POST["accion"]) && $_POST["accion"] == "login") {
     $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE username=? AND password_hash=?");
     $stmt->execute([$_POST["username"], $_POST["password"]]);
-    $u = $stmt->fetch();
-
+    $u = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($u) {
         $_SESSION["user"] = $u;
+        $msg = "Sesión iniciada como " . htmlspecialchars($u["username"]);
     } else {
-        $msg = "Login incorrecto";
+        $msg = "Usuario o contraseña incorrectos";
     }
 }
 
 if (isset($_POST["accion"]) && $_POST["accion"] == "logout") {
     session_destroy();
     header("Location: index.php");
+    exit;
 }
 
 if (isset($_POST["accion"]) && $_POST["accion"] == "inscribir") {
-    $pdo->prepare("INSERT INTO matricula(estudiante_id,curso_id)
-    VALUES (?,?)")->execute([$_SESSION["user"]["estudiante_id"], $_POST["curso_id"]]);
-    $msg = "Inscrito correctamente";
+    if (isset($_SESSION["user"]) && $_SESSION["user"]["rol_id"] == 3) {
+        try {
+            $stmt = $pdo->prepare("INSERT INTO matricula(estudiante_id,curso_id,fecha_matricula) VALUES (?,?,NOW())");
+            $stmt->execute([$_SESSION["user"]["estudiante_id"], $_POST["curso_id"]]);
+            $msg = "Inscripción realizada correctamente";
+        } catch (PDOException $e) {
+            $msg = "Ya está inscrito en este curso";
+        }
+    } else {
+        $msg = "Debe iniciar sesión como estudiante para inscribirse";
+    }
 }
 
-$cursos = $pdo->query("SELECT * FROM v_cursos_publicos")->fetchAll();
+$cursos = $pdo->query("SELECT * FROM v_cursos_publicos")->fetchAll(PDO::FETCH_ASSOC);
 
 $mis = [];
 if (isset($_SESSION["user"]) && $_SESSION["user"]["rol_id"] == 3) {
     $stmt = $pdo->prepare("SELECT * FROM v_historial_cliente WHERE usuario_id=?");
     $stmt->execute([$_SESSION["user"]["usuario_id"]]);
-    $mis = $stmt->fetchAll();
+    $mis = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 ?>
-
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>OpenEnglish</title>
+<title>OpenEnglish - Sistema de Cursos</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+*{box-sizing:border-box}
+body{font-family:Arial,sans-serif;margin:0;background:#f4f4f4;color:#333}
+header{background:#1e88e5;color:#fff;padding:1rem 2rem}
+header h1{margin:0;font-size:1.6rem}
+nav{background:#1565c0;padding:0.5rem 2rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
+nav a{color:#fff;text-decoration:none;font-size:.95rem}
+nav a:hover{text-decoration:underline}
+nav form{margin:0}
+nav button{background:#e53935;color:#fff;border:none;border-radius:4px;padding:0.3rem 0.7rem;cursor:pointer;font-size:.85rem}
+main{padding:2rem}
+section{background:#fff;border-radius:8px;padding:1.5rem;margin-bottom:2rem;box-shadow:0 2px 4px rgba(0,0,0,0.08)}
+h2{margin-top:0;color:#1565c0}
+form{margin-bottom:1.5rem}
+label{display:block;margin-bottom:0.3rem;font-weight:bold}
+input,select{width:100%;padding:0.4rem;margin-bottom:0.8rem;border-radius:4px;border:1px solid #ccc}
+button{background:#1e88e5;color:#fff;border:none;border-radius:4px;padding:0.5rem 1rem;cursor:pointer}
+button:hover{background:#1565c0}
+table{width:100%;border-collapse:collapse;margin-top:0.8rem}
+th,td{border:1px solid #ddd;padding:0.4rem;text-align:left}
+th{background:#e3f2fd}
+.grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1.5rem}
+.mensaje{padding:0.6rem 1rem;border-radius:4px;margin-bottom:1rem}
+.ok{background:#e8f5e9;border:1px solid #2e7d32;color:#2e7d32}
+.err{background:#ffebee;border:1px solid #c62828;color:#c62828}
+</style>
 <script src="script.js"></script>
 </head>
 <body>
 
-<h2>Login</h2>
-<form method="post">
-<input type="hidden" name="accion" value="login">
-<input name="username" placeholder="Usuario">
-<input name="password" placeholder="Clave">
-<button>Entrar</button>
-</form>
+<header>
+<h1>OpenEnglish - Sistema de Gestión de Cursos</h1>
+</header>
 
-<h2>Registro Estudiante</h2>
-<form method="post">
-<input type="hidden" name="accion" value="registro">
-<input name="nombre" placeholder="Nombre">
-<input name="apellido" placeholder="Apellido">
-<input name="email" placeholder="Email">
-<input name="username" placeholder="Usuario">
-<input name="password" placeholder="Clave">
-<button>Registrar</button>
-</form>
-
+<nav>
+<a href="#login">Inicio</a>
+<a href="#registro">Registro</a>
+<a href="#cursos">Cursos</a>
+<a href="#mis">Mis cursos</a>
 <?php if(isset($_SESSION["user"])): ?>
-
 <form method="post">
 <input type="hidden" name="accion" value="logout">
-<button>Salir</button>
+<button type="submit">Salir (<?php echo htmlspecialchars($_SESSION["user"]["username"]); ?>)</button>
 </form>
+<?php endif; ?>
+</nav>
 
-<h2>Cursos</h2>
-<?php foreach($cursos as $c): ?>
-<form method="post">
-<?= $c["titulo"] ?> - <?= $c["profesor"] ?>
-<input type="hidden" name="curso_id" value="<?= $c["curso_id"] ?>">
-<input type="hidden" name="accion" value="inscribir">
-<button>Inscribirse</button>
-</form>
-<?php endforeach; ?>
+<main>
 
-<h2>Mis Cursos</h2>
-<?php foreach($mis as $m): ?>
-<p><?= $m["curso"] ?> - <?= $m["fecha_matricula"] ?> - <?= $m["monto"] ?></p>
-<?php endforeach; ?>
-
+<?php if($msg!=""): ?>
+<div class="mensaje <?php echo (strpos($msg,"incorrect")!==false||strpos($msg,"Debe")!==false||strpos($msg,"Ya está")!==false)?'err':'ok'; ?>">
+<?php echo htmlspecialchars($msg); ?>
+</div>
 <?php endif; ?>
 
-<p><?= $msg ?></p>
+<section id="login">
+<h2>Inicio de Sesión</h2>
+<?php if(!isset($_SESSION["user"])): ?>
+<form method="post">
+<input type="hidden" name="accion" value="login">
+<label>Usuario</label>
+<input type="text" name="username" required>
+<label>Contraseña</label>
+<input type="password" name="password" required>
+<button type="submit">Ingresar</button>
+</form>
+<?php else: ?>
+<p>Ya has iniciado sesión como <strong><?php echo htmlspecialchars($_SESSION["user"]["username"]); ?></strong>.</p>
+<?php endif; ?>
+</section>
 
+<section id="registro">
+<h2>Registro de Estudiante</h2>
+<form method="post">
+<input type="hidden" name="accion" value="registro">
+<label>Nombre</label>
+<input type="text" name="nombre" required>
+<label>Apellido</label>
+<input type="text" name="apellido" required>
+<label>Email</label>
+<input type="email" name="email" required>
+<label>Nombre de usuario</label>
+<input type="text" name="username" required>
+<label>Contraseña</label>
+<input type="password" name="password" required>
+<button type="submit">Registrarse</button>
+</form>
+</section>
+
+<section id="cursos">
+<h2>Cursos Disponibles</h2>
+<table>
+<tr>
+<th>Curso</th>
+<th>Descripción</th>
+<th>Profesor</th>
+<th>Acción</th>
+</tr>
+<?php if(count($cursos)==0): ?>
+<tr><td colspan="4">No hay cursos registrados.</td></tr>
+<?php endif; ?>
+<?php foreach($cursos as $c): ?>
+<tr>
+<td><?php echo htmlspecialchars($c["titulo"]); ?></td>
+<td><?php echo htmlspecialchars($c["descripcion"]); ?></td>
+<td><?php echo htmlspecialchars($c["profesor"]); ?></td>
+<td>
+<?php if(isset($_SESSION["user"]) && $_SESSION["user"]["rol_id"]==3): ?>
+<form method="post">
+<input type="hidden" name="accion" value="inscribir">
+<input type="hidden" name="curso_id" value="<?php echo $c["curso_id"]; ?>">
+<button type="submit">Inscribirme</button>
+</form>
+<?php elseif(!isset($_SESSION["user"])): ?>
+Inicie sesión
+<?php else: ?>
+Solo estudiantes
+<?php endif; ?>
+</td>
+</tr>
+<?php endforeach; ?>
+</table>
+</section>
+
+<section id="mis">
+<h2>Mis Cursos</h2>
+<?php if(!isset($_SESSION["user"])): ?>
+<p>Inicie sesión como estudiante para ver sus cursos.</p>
+<?php elseif($_SESSION["user"]["rol_id"]!=3): ?>
+<p>Solo los estudiantes tienen cursos inscritos.</p>
+<?php else: ?>
+<table>
+<tr>
+<th>Curso</th>
+<th>Fecha matrícula</th>
+<th>Monto</th>
+<th>Fecha pago</th>
+</tr>
+<?php if(count($mis)==0): ?>
+<tr><td colspan="4">Todavía no está inscrito en ningún curso.</td></tr>
+<?php endif; ?>
+<?php foreach($mis as $m): ?>
+<tr>
+<td><?php echo htmlspecialchars($m["curso"]); ?></td>
+<td><?php echo htmlspecialchars($m["fecha_matricula"]); ?></td>
+<td><?php echo htmlspecialchars($m["monto"]); ?></td>
+<td><?php echo htmlspecialchars($m["fecha_pago"]); ?></td>
+</tr>
+<?php endforeach; ?>
+</table>
+<?php endif; ?>
+</section>
+
+</main>
 </body>
 </html>
