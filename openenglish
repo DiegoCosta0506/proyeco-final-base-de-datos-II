@@ -1,0 +1,217 @@
+DROP DATABASE IF EXISTS openenglish;
+CREATE DATABASE openenglish;
+USE openenglish;
+
+CREATE TABLE profesores (
+  profesor_id INT AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(100) NOT NULL,
+  apellido VARCHAR(100) NOT NULL,
+  email VARCHAR(150) NOT NULL UNIQUE
+);
+
+CREATE TABLE curso (
+  curso_id INT AUTO_INCREMENT PRIMARY KEY,
+  titulo VARCHAR(150) NOT NULL,
+  descripcion TEXT,
+  profesor_id INT NOT NULL,
+  FOREIGN KEY (profesor_id) REFERENCES profesores(profesor_id)
+);
+
+CREATE TABLE estudiantes (
+  estudiante_id INT AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(100) NOT NULL,
+  apellido VARCHAR(100) NOT NULL,
+  email VARCHAR(150) NOT NULL UNIQUE
+);
+
+CREATE TABLE metodos_pago (
+  metodo_pago_id INT AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(50) NOT NULL UNIQUE
+);
+
+CREATE TABLE matricula (
+  matricula_id INT AUTO_INCREMENT PRIMARY KEY,
+  estudiante_id INT NOT NULL,
+  curso_id INT NOT NULL,
+  fecha_matricula DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (estudiante_id) REFERENCES estudiantes(estudiante_id),
+  FOREIGN KEY (curso_id) REFERENCES curso(curso_id),
+  UNIQUE (estudiante_id, curso_id)
+);
+
+CREATE TABLE pagos (
+  pago_id INT AUTO_INCREMENT PRIMARY KEY,
+  matricula_id INT NOT NULL UNIQUE,
+  monto DECIMAL(10,2) NOT NULL,
+  fecha_pago DATETIME DEFAULT CURRENT_TIMESTAMP,
+  metodo_pago_id INT NOT NULL,
+  FOREIGN KEY (matricula_id) REFERENCES matricula(matricula_id),
+  FOREIGN KEY (metodo_pago_id) REFERENCES metodos_pago(metodo_pago_id)
+);
+
+CREATE TABLE roles_app (
+  rol_id INT AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(50) NOT NULL UNIQUE
+);
+
+CREATE TABLE usuarios (
+  usuario_id INT AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(50) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  email VARCHAR(150) NOT NULL UNIQUE,
+  rol_id INT NOT NULL,
+  estudiante_id INT,
+  creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+  activo TINYINT(1) DEFAULT 1,
+  FOREIGN KEY (rol_id) REFERENCES roles_app(rol_id),
+  FOREIGN KEY (estudiante_id) REFERENCES estudiantes(estudiante_id)
+);
+
+CREATE TABLE auditoria_matricula (
+  auditoria_id INT AUTO_INCREMENT PRIMARY KEY,
+  matricula_id INT,
+  estudiante_id INT,
+  curso_id INT,
+  operacion ENUM('INSERT','UPDATE','DELETE') NOT NULL,
+  datos_anteriores JSON,
+  datos_nuevos JSON,
+  fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+  usuario_bd VARCHAR(100)
+);
+
+CREATE TABLE auditoria_usuarios (
+  auditoria_id INT AUTO_INCREMENT PRIMARY KEY,
+  usuario_id INT,
+  operacion ENUM('INSERT','UPDATE','DELETE') NOT NULL,
+  datos_anteriores JSON,
+  datos_nuevos JSON,
+  fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+  usuario_bd VARCHAR(100)
+);
+
+INSERT INTO profesores (nombre, apellido, email) VALUES
+('Ana','Suarez','ana@gmail.com'),
+('Miguel','Rey','miguel@gmail.com'),
+('Victor','Ramos','victor@gmail.com'),
+('Laura','Perez','laura@gmail.com'),
+('Sofia','Mena','sofia@gmail.com');
+
+INSERT INTO curso (titulo, descripcion, profesor_id) VALUES
+('Inglés Básico A1','Curso básico de inglés',1),
+('Inglés Conversacional','Curso conversacional',2),
+('Inglés Negocios','Inglés empresarial',3),
+('Gramática Intermedia','Gramática media',4),
+('Francés Básico','Francés inicial',5);
+
+INSERT INTO estudiantes (nombre, apellido, email) VALUES
+('Luis','Paredes','luis@gmail.com'),
+('Carla','Mena','carla@gmail.com'),
+('David','Vera','david@gmail.com'),
+('Monica','Diaz','monica@gmail.com'),
+('Pedro','Soto','pedro@gmail.com');
+
+INSERT INTO metodos_pago (nombre) VALUES
+('Tarjeta'),('Transferencia'),('PayPal');
+
+INSERT INTO roles_app (nombre) VALUES ('ADMIN'),('CLIENTE');
+
+INSERT INTO usuarios (username,password_hash,email,rol_id,estudiante_id) VALUES
+('admin','admin123','admin@gmail.com',1,NULL),
+('luisp','123','luis@gmail.com',2,1);
+
+CREATE VIEW v_cursos_publicos AS
+SELECT c.curso_id,c.titulo,c.descripcion,
+CONCAT(p.nombre,' ',p.apellido) AS profesor
+FROM curso c
+JOIN profesores p ON c.profesor_id=p.profesor_id;
+
+CREATE VIEW v_historial_cliente AS
+SELECT u.usuario_id,e.estudiante_id,c.titulo,
+m.fecha_matricula,p.monto,p.fecha_pago,mp.nombre AS metodo
+FROM usuarios u
+JOIN estudiantes e ON u.estudiante_id=e.estudiante_id
+JOIN matricula m ON m.estudiante_id=e.estudiante_id
+LEFT JOIN pagos p ON p.matricula_id=m.matricula_id
+LEFT JOIN metodos_pago mp ON mp.metodo_pago_id=p.metodo_pago_id;
+
+CREATE VIEW v_reporte_ingresos_curso AS
+SELECT c.titulo,COUNT(m.matricula_id) AS total_matriculas,
+COALESCE(SUM(p.monto),0) AS total_ingresos
+FROM curso c
+LEFT JOIN matricula m ON c.curso_id=m.curso_id
+LEFT JOIN pagos p ON p.matricula_id=m.matricula_id
+GROUP BY c.curso_id;
+
+DELIMITER $$
+
+CREATE FUNCTION fn_total_pagado_estudiante(id INT)
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+BEGIN
+  DECLARE total DECIMAL(10,2);
+  SELECT COALESCE(SUM(p.monto),0)
+  INTO total
+  FROM matricula m
+  JOIN pagos p ON p.matricula_id=m.matricula_id
+  WHERE m.estudiante_id=id;
+  RETURN total;
+END $$
+
+CREATE FUNCTION fn_cursos_estudiante(id INT)
+RETURNS INT
+DETERMINISTIC
+BEGIN
+  DECLARE total INT;
+  SELECT COUNT(*) INTO total FROM matricula WHERE estudiante_id=id;
+  RETURN total;
+END $$
+
+CREATE PROCEDURE sp_registrar_matricula_pago(
+  IN est INT, IN cur INT, IN mon DECIMAL(10,2), IN met INT
+)
+BEGIN
+  START TRANSACTION;
+  INSERT INTO matricula(estudiante_id,curso_id) VALUES(est,cur);
+  INSERT INTO pagos(matricula_id,monto,metodo_pago_id)
+  VALUES(LAST_INSERT_ID(),mon,met);
+  COMMIT;
+END $$
+
+CREATE PROCEDURE sp_eliminar_curso_seguro(id INT)
+BEGIN
+  IF (SELECT COUNT(*) FROM matricula WHERE curso_id=id)>0 THEN
+    SIGNAL SQLSTATE '45000';
+  ELSE
+    DELETE FROM curso WHERE curso_id=id;
+  END IF;
+END $$
+
+CREATE PROCEDURE sp_resumen_actividad_usuario(id INT)
+BEGIN
+  SELECT u.username,fn_cursos_estudiante(u.estudiante_id),
+  fn_total_pagado_estudiante(u.estudiante_id)
+  FROM usuarios u WHERE u.usuario_id=id;
+END $$
+
+CREATE TRIGGER trg_matricula_ai AFTER INSERT ON matricula
+FOR EACH ROW
+BEGIN
+INSERT INTO auditoria_matricula
+(matricula_id,estudiante_id,curso_id,operacion,datos_nuevos,usuario_bd)
+VALUES
+(NEW.matricula_id,NEW.estudiante_id,NEW.curso_id,'INSERT',
+JSON_OBJECT('fecha',NEW.fecha_matricula),CURRENT_USER());
+END $$
+
+CREATE TRIGGER trg_usuarios_bd BEFORE DELETE ON usuarios
+FOR EACH ROW
+BEGIN
+INSERT INTO auditoria_usuarios
+(usuario_id,operacion,datos_anteriores,usuario_bd)
+VALUES
+(OLD.usuario_id,'DELETE',
+JSON_OBJECT('usuario',OLD.username,'email',OLD.email),
+CURRENT_USER());
+END $$
+
+DELIMITER ;
